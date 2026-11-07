@@ -208,9 +208,8 @@ class LowRankPlusDiagonalCovariance(BaseCovariance):
         return S
 
 class LowRankCovariance(LowRankPlusDiagonalCovariance):
-    def __init__(self, C, d_2, k, L, m, sigma_f, sigma_n2, tau, temp, cold, update_tau=False):
+    def __init__(self, C, d_2, k, L, m, sigma_f, sigma_n2, tau, temp, cold):
         super().__init__(C, d_2, k, L, m, sigma_f, sigma_n2, tau, temp, cold)
-        self.update_tau = update_tau
 
     def step(self, Phi, y):
         self.m_update(Phi, y)
@@ -218,5 +217,13 @@ class LowRankCovariance(LowRankPlusDiagonalCovariance):
         self.L_update(Phi, y)
         self.sigma_f_update(Phi, y)
         self.sigma_n2_update(Phi, y)
-        if self.update_tau:
-            self.tau_update(Phi)
+        
+class EmpiricalBayes:
+    def step(self, Phi, y):
+        super().step(Phi, y)
+        self.tau_update(Phi)
+
+class FullRankCovarianceEmpiricalBayes(EmpiricalBayes, FullRankCovariance): pass
+class DiagonalCovarianceEmpiricalBayes(EmpiricalBayes, DiagonalCovariance): pass
+class LowRankPlusDiagonalCovarianceEmpiricalBayes(EmpiricalBayes, LowRankPlusDiagonalCovariance): pass
+class LowRankCovarianceEmpiricalBayes(EmpiricalBayes, LowRankCovariance): pass

@@ -218,12 +218,12 @@ class LowRankCovariance(LowRankPlusDiagonalCovariance):
         self.sigma_f_update(Phi, y)
         self.sigma_n2_update(Phi, y)
         
-class EmpiricalBayes:
+class EmpiricalBayesMixin:
     def step(self, Phi, y):
         super().step(Phi, y)
         self.tau_update(Phi)
 
-class FullRankCovarianceEmpiricalBayes(EmpiricalBayes, FullRankCovariance): pass
-class DiagonalCovarianceEmpiricalBayes(EmpiricalBayes, DiagonalCovariance): pass
-class LowRankPlusDiagonalCovarianceEmpiricalBayes(EmpiricalBayes, LowRankPlusDiagonalCovariance): pass
-class LowRankCovarianceEmpiricalBayes(EmpiricalBayes, LowRankCovariance): pass
+class FullRankCovarianceEmpiricalBayesMixin(EmpiricalBayesMixin, FullRankCovariance): pass
+class DiagonalCovarianceEmpiricalBayesMixin(EmpiricalBayesMixin, DiagonalCovariance): pass
+class LowRankPlusDiagonalCovarianceEmpiricalBayesMixin(EmpiricalBayesMixin, LowRankPlusDiagonalCovariance): pass
+class LowRankCovarianceEmpiricalBayesMixin(EmpiricalBayesMixin, LowRankCovariance): pass

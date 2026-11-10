@@ -263,7 +263,6 @@ class WSVHGP(torch.nn.Module):
         return self._to_chol(self.raw_L_g)
 
     def q_fstar(self, Phi_f, Phi_g, y):
-        y = y.reshape(-1, 1)
         var_g = ((Phi_g @ self.L_g) ** 2).sum(dim=1, keepdim=True)
         r = torch.exp(self.mu_0 + Phi_g @ self.m_g - 0.5 * var_g)
         A = torch.eye(Phi_f.shape[1], dtype=Phi_f.dtype, device=Phi_f.device) + Phi_f.T @ (Phi_f / r)

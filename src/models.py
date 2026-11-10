@@ -218,12 +218,82 @@ class LowRankCovariance(LowRankPlusDiagonalCovariance):
         self.sigma_f_update(Phi, y)
         self.sigma_n2_update(Phi, y)
         
+        
 class EmpiricalBayesMixin:
     def step(self, Phi, y):
         super().step(Phi, y)
         self.tau_update(Phi)
 
+        
 class FullRankCovarianceEmpiricalBayesMixin(EmpiricalBayesMixin, FullRankCovariance): pass
+
+
 class DiagonalCovarianceEmpiricalBayesMixin(EmpiricalBayesMixin, DiagonalCovariance): pass
+
+
 class LowRankPlusDiagonalCovarianceEmpiricalBayesMixin(EmpiricalBayesMixin, LowRankPlusDiagonalCovariance): pass
+
+
 class LowRankCovarianceEmpiricalBayesMixin(EmpiricalBayesMixin, LowRankCovariance): pass
+
+
+# TODO: class HGP(torch.nn.Module):
+
+
+# TODO: class VHGP(torch.nn.Module):
+
+
+# TODO: class WSHGP(torch.nn.Module):
+
+
+class WSVHGP(torch.nn.Module):    
+
+    def __init__(self, m_g, mu_0, raw_L_g):
+        super().__init__()
+        self.m_g = torch.nn.Parameter(m_g)
+        self.mu_0 = torch.nn.Parameter(mu_0)
+        self.raw_L_g = torch.nn.Parameter(raw_L_g)
+
+    @staticmethod
+    def _to_chol(raw_L):
+        return torch.tril(raw_L, diagonal=-1) + torch.diag(torch.nn.functional.softplus(torch.diagonal(raw_L)))
+
+    @property
+    def L_g(self):
+        return self._to_chol(self.raw_L_g)
+
+    def q_fstar(self, Phi_f, Phi_g, y):
+        y = y.reshape(-1, 1)
+        var_g = ((Phi_g @ self.L_g) ** 2).sum(dim=1, keepdim=True)
+        r = torch.exp(self.mu_0 + Phi_g @ self.m_g - 0.5 * var_g)
+        A = torch.eye(Phi_f.shape[1], dtype=Phi_f.dtype, device=Phi_f.device) + Phi_f.T @ (Phi_f / r)
+        C = torch.linalg.cholesky(A)
+        m_f = torch.cholesky_solve(Phi_f.T @ (y / r), C)
+        S_f = torch.cholesky_inverse(C)
+        L_f = torch.linalg.cholesky(S_f)
+        return m_f, L_f
+
+    def elbo(self, Phi_f, Phi_g, y):
+        m_f, L_f = self.q_fstar(Phi_f, Phi_g, y)
+        mean_f = Phi_f @ m_f
+        var_f = ((Phi_f @ L_f) ** 2).sum(dim=1, keepdim=True)
+        mean_g = Phi_g @ self.m_g
+        var_g = ((Phi_g @ self.L_g) ** 2).sum(dim=1, keepdim=True)
+        sq_err = (y - mean_f) ** 2 + var_f
+        exp_term = torch.exp(-self.mu_0 - mean_g + 0.5 * var_g)
+        ell = (-0.5 * math.log(2 * math.pi) - 0.5 * (self.mu_0 + mean_g) - 0.5 * sq_err * exp_term).sum()
+        kl_f = 0.5 * ((L_f ** 2).sum() + (m_f ** 2).sum() - m_f.shape[0] - 2.0 * torch.log(torch.diagonal(L_f)).sum())
+        kl_g = 0.5 * ((self.L_g ** 2).sum() + (self.m_g ** 2).sum() - self.m_g.shape[0] - 2.0 * torch.log(torch.diagonal(self.L_g)).sum())
+        return ell - kl_f - kl_g
+
+    @torch.no_grad()
+    def predict(self, Phi_f_star, Phi_g_star, Phi_f, Phi_g, y):
+        m_f, L_f = self.q_fstar(Phi_f, Phi_g, y)
+        mean = Phi_f_star @ m_f
+        epistemic_var = ((Phi_f_star @ L_f) ** 2).sum(dim=1, keepdim=True)
+        mean_g = Phi_g_star @ self.m_g
+        var_g = ((Phi_g_star @ self.L_g) ** 2).sum(dim=1, keepdim=True)
+        aleatoric_var = torch.exp(self.mu_0 + mean_g + 0.5 * var_g)
+        return mean, epistemic_var + aleatoric_var
+    
+    
